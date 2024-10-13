@@ -79,9 +79,10 @@ public partial class WeaponPaints : BasePlugin, IPluginConfig<WeaponPaintsConfig
 	private static WeaponPaintsConfig _config = new();
 	internal static IStringLocalizer? _localizer;
 	private static Dictionary<int, int> g_knifePickupCount = new();
-	internal static ConcurrentDictionary<int, string> g_playersKnife = new();
-	internal static ConcurrentDictionary<int, ushort> g_playersGlove = new();
-	internal static ConcurrentDictionary<int, ushort> g_playersMusic = new();
+	internal static ConcurrentDictionary<int, ConcurrentDictionary<int, string>> g_playersKnife = new();
+	internal static ConcurrentDictionary<int, ConcurrentDictionary<int, ushort>> g_playersGlove = new();
+	internal static ConcurrentDictionary<int, ConcurrentDictionary<int, ushort>> g_playersMusic = new();
+
 	internal static ConcurrentDictionary<int, (string? CT, string? T)> g_playersAgent = new();
 	internal static ConcurrentDictionary<int, ConcurrentDictionary<int, WeaponInfo>> gPlayerWeaponsInfo = new();
 	internal static List<JObject> skinsList = new();

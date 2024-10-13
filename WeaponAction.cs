@@ -11,20 +11,27 @@ namespace WeaponPaints
 {
 	public partial class WeaponPaints
 	{
-				private void GivePlayerWeaponSkin(CCSPlayerController player, CBasePlayerWeapon weapon)
+		private void GivePlayerWeaponSkin(CCSPlayerController player, CBasePlayerWeapon weapon)
 		{
 			if (!Config.Additional.SkinEnabled) return;
 			if (!gPlayerWeaponsInfo.TryGetValue(player.Slot, out _)) return;
 
 			bool isKnife = weapon.DesignerName.Contains("knife") || weapon.DesignerName.Contains("bayonet");
 
-			if (isKnife && !g_playersKnife.ContainsKey(player.Slot) || isKnife && g_playersKnife[player.Slot] == "weapon_knife") return;
+			if (!g_playersKnife[player.Slot].TryGetValue((ushort)player.Team, out var knifeValue)) {
+				if (!g_playersKnife[player.Slot].TryGetValue(0, out var knifeValue2)) return;
+                else {
+                	knifeValue = knifeValue2;
+                }
+            }
+			if (isKnife && !g_playersKnife.ContainsKey(player.Slot) || isKnife && knifeValue == "weapon_knife") return;
+
 
 			int[] newPaints = { 106, 112, 113, 114, 115, 117, 118, 120, 121, 123, 126, 127, 128, 129, 130, 131, 133, 134, 137, 138, 139, 140, 142, 144, 145, 146, 152, 160, 161, 163, 173, 239, 292, 324, 331, 412, 461, 513, 766, 768, 770, 773, 774, 830, 831, 832, 834, 874, 875, 877, 878, 882, 883, 901, 912, 936, 937, 938, 939, 940, 1054, 1062, 1159, 1160, 1161, 1162, 1163, 1164, 1165, 1166, 1167, 1168, 1169, 1170, 1171, 1172, 1173, 1174, 1175, 1177, 1178, 1179, 1180 };
 
 			if (isKnife)
 			{
-				var newDefIndex = WeaponDefindex.FirstOrDefault(x => x.Value == g_playersKnife[player.Slot]);
+				var newDefIndex = WeaponDefindex.FirstOrDefault(x => x.Value == knifeValue);
 				if (newDefIndex.Key == 0) return;
 
 				if (weapon.AttributeManager.Item.ItemDefinitionIndex != newDefIndex.Key)
@@ -74,6 +81,10 @@ namespace WeaponPaints
 			if (!gPlayerWeaponsInfo[player.Slot].TryGetValue(weaponDefIndex, out var value) || value.Paint == 0) return;
 
 			var weaponInfo = value;
+			if ((CsTeam)weaponInfo.Team != player.Team && (CsTeam)weaponInfo.Team != CsTeam.None)
+			{
+				return;
+			}
 			//Log($"Apply on {weapon.DesignerName}({weapon.AttributeManager.Item.ItemDefinitionIndex}) paint {gPlayerWeaponPaints[steamId.SteamId64][weapon.AttributeManager.Item.ItemDefinitionIndex]} seed {gPlayerWeaponSeed[steamId.SteamId64][weapon.AttributeManager.Item.ItemDefinitionIndex]} wear {gPlayerWeaponWear[steamId.SteamId64][weapon.AttributeManager.Item.ItemDefinitionIndex]}");
 			weapon.AttributeManager.Item.ItemID = 16384;
 			weapon.AttributeManager.Item.ItemIDLow = 16384 & 0xFFFFFFFF;
@@ -84,7 +95,7 @@ namespace WeaponPaints
 			CAttributeListSetOrAddAttributeValueByName.Invoke(weapon.AttributeManager.Item.NetworkedDynamicAttributes.Handle, "set item texture prefab", weapon.FallbackPaintKit);
 
 			fallbackPaintKit = weapon.FallbackPaintKit;
-
+			
 			if (fallbackPaintKit == 0)
 				return;
 
@@ -285,11 +296,23 @@ namespace WeaponPaints
 					if (!player.PawnIsAlive)
 						return;
 
-					if (!g_playersGlove.TryGetValue(player.Slot, out var gloveInfo) || gloveInfo == 0) return;
+					if (!g_playersGlove.TryGetValue(player.Slot, out var gloveInfo)) return;
 
-					WeaponInfo weaponInfo = gPlayerWeaponsInfo[player.Slot][gloveInfo];
+					if (!gloveInfo.TryGetValue((ushort)player.Team, out var gloveIndex)) {
+						if (!gloveInfo.TryGetValue(0, out var gloveIndex2)) return;
+						else {
+							gloveIndex = gloveIndex2;
+						}
+					}
+					WeaponInfo weaponInfo = gPlayerWeaponsInfo[player.Slot][gloveIndex];
 
-					item.ItemDefinitionIndex = gloveInfo;
+
+
+					if ((CsTeam)weaponInfo.Team != player.Team && (CsTeam)weaponInfo.Team != CsTeam.None)
+					{
+						return;
+					}
+					item.ItemDefinitionIndex = gloveIndex;
 					item.ItemIDLow = 16384 & 0xFFFFFFFF;
 					item.ItemIDHigh = 16384;
 
@@ -383,10 +406,16 @@ namespace WeaponPaints
 		{
 			if (!g_playersMusic.TryGetValue(player.Slot, out var value)) return;
 			if (player.InventoryServices == null) return;
-			
-			player.InventoryServices.MusicID = value;
+			if (!value.TryGetValue((ushort)player.Team, out var musicId)) {
+				if (!value.TryGetValue(0, out var musicId2)) return;
+				else {
+					musicId = musicId2;
+				}
+			}
+
+			player.InventoryServices.MusicID = musicId;
 			Utilities.SetStateChanged(player, "CCSPlayerController", "m_pInventoryServices");
-			player.MusicKitID = value;
+			player.MusicKitID = musicId;
 			Utilities.SetStateChanged(player, "CCSPlayerController", "m_iMusicKitID");
 		}
 		

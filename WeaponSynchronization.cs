@@ -45,14 +45,18 @@ namespace WeaponPaints
 			{
 				if (!_config.Additional.KnifeEnabled || string.IsNullOrEmpty(player?.SteamId))
 					return;
-
-				const string query = "SELECT `knife` FROM `wp_player_knife` WHERE `steamid` = @steamid";
-				var playerKnife = connection.QueryFirstOrDefault<string>(query, new { steamid = player.SteamId });
-
-				if (!string.IsNullOrEmpty(playerKnife))
+				const string query = "SELECT `knife`, `team` FROM `wp_player_knife` WHERE `steamid` = @steamid";
+				var playerData = connection.Query<dynamic>(query, new { steamid = player.SteamId });
+				var playerKnives = new ConcurrentDictionary<int, string>();
+				foreach (var row in playerData)
 				{
-					WeaponPaints.g_playersKnife[player.Slot] = playerKnife;
+					string knife = row?.knife ?? "weapon_knife";
+					int team = row?.team ?? 0;
+
+					playerKnives[team] = (string)knife;
 				}
+
+				WeaponPaints.g_playersKnife[player.Slot] = playerKnives;						
 			}
 			catch (Exception ex)
 			{
@@ -67,13 +71,22 @@ namespace WeaponPaints
 				if (!_config.Additional.GloveEnabled || string.IsNullOrEmpty(player?.SteamId))
 					return;
 
-				const string query = "SELECT `weapon_defindex` FROM `wp_player_gloves` WHERE `steamid` = @steamid";
-				var gloveData = connection.QueryFirstOrDefault<ushort?>(query, new { steamid = player.SteamId });
 
-				if (gloveData != null)
-				{
-					WeaponPaints.g_playersGlove[player.Slot] = gloveData.Value;
-				}
+					const string query = "SELECT `weapon_defindex`, `weapon_team` FROM `wp_player_gloves` WHERE `steamid` = @steamid";
+					var gloveData = connection.Query<dynamic>(query, new { steamid = player.SteamId });
+
+
+					var glovesInfo = new ConcurrentDictionary<int, ushort>();
+					foreach (var row in gloveData)
+					{
+						int weaponDefIndex = row?.weapon_defindex ?? 0;
+						int weaponTeam = row?.weapon_team ?? 0;
+
+						glovesInfo[weaponTeam] = (ushort)weaponDefIndex;
+					}
+
+					WeaponPaints.g_playersGlove[player.Slot] = glovesInfo;
+
 			}
 			catch (Exception ex)
 			{
@@ -127,12 +140,15 @@ namespace WeaponPaints
 					int weaponPaintId = row?.weapon_paint_id ?? 0;
 					float weaponWear = row?.weapon_wear ?? 0f;
 					int weaponSeed = row?.weapon_seed ?? 0;
+					int weaponTeam = row?.weapon_team ?? 0;
+
 
 					WeaponInfo weaponInfo = new WeaponInfo
 					{
 						Paint = weaponPaintId,
 						Seed = weaponSeed,
-						Wear = weaponWear
+						Wear = weaponWear,
+						Team = weaponTeam
 					};
 
 					weaponInfos[weaponDefIndex] = weaponInfo;
@@ -152,14 +168,19 @@ namespace WeaponPaints
 			{
 				if (!_config.Additional.MusicEnabled || string.IsNullOrEmpty(player?.SteamId))
 					return;
+					const string query = "SELECT `music_id`, `team` FROM `wp_player_music` WHERE `steamid` = @steamid";
+                    var musicData = connection.Query<dynamic>(query, new { steamid = player.SteamId });
 
-				const string query = "SELECT `music_id` FROM `wp_player_music` WHERE `steamid` = @steamid";
-				var musicData = connection.QueryFirstOrDefault<ushort?>(query, new { steamid = player.SteamId });
 
-				if (musicData != null)
-				{
-					WeaponPaints.g_playersMusic[player.Slot] = musicData.Value;
-				}
+					var musicInfos = new ConcurrentDictionary<int, ushort>();
+					foreach (var row in musicData)
+					{
+						int musicId = row?.music_id ?? 0;
+						int team = row?.team ?? 0;
+
+						musicInfos[team] = (ushort)musicId;
+					}
+					WeaponPaints.g_playersMusic[player.Slot] = musicInfos;
 			}
 			catch (Exception ex)
 			{
@@ -169,16 +190,16 @@ namespace WeaponPaints
 
 
 
-		internal async Task SyncKnifeToDatabase(PlayerInfo player, string knife)
+		internal async Task SyncKnifeToDatabase(PlayerInfo player, string knife, int team)
 		{
 			if (!_config.Additional.KnifeEnabled || string.IsNullOrEmpty(player.SteamId) || string.IsNullOrEmpty(knife)) return;
 
-			const string query = "INSERT INTO `wp_player_knife` (`steamid`, `knife`) VALUES(@steamid, @newKnife) ON DUPLICATE KEY UPDATE `knife` = @newKnife";
+			const string query = "INSERT INTO `wp_player_knife` (`steamid`, `knife`, `team`) VALUES(@steamid, @newKnife, @team) ON DUPLICATE KEY UPDATE `knife` = @newKnife, `team` = @team";
 			
 			try
 			{
 				await using var connection = await _database.GetConnectionAsync();
-				await connection.ExecuteAsync(query, new { steamid = player.SteamId, newKnife = knife });
+				await connection.ExecuteAsync(query, new { steamid = player.SteamId, newKnife = knife, team = team });
 			}
 			catch (Exception e)
 			{
@@ -186,15 +207,16 @@ namespace WeaponPaints
 			}
 		}
 
-		internal async Task SyncGloveToDatabase(PlayerInfo player, int defindex)
+		internal async Task SyncGloveToDatabase(PlayerInfo player, int defindex, int team)
 		{
 			if (!_config.Additional.GloveEnabled || string.IsNullOrEmpty(player.SteamId)) return;
 
 			try
 			{
 				await using var connection = await _database.GetConnectionAsync();
-				const string query = "INSERT INTO `wp_player_gloves` (`steamid`, `weapon_defindex`) VALUES(@steamid, @weapon_defindex) ON DUPLICATE KEY UPDATE `weapon_defindex` = @weapon_defindex";
-				await connection.ExecuteAsync(query, new { steamid = player.SteamId, weapon_defindex = defindex });
+				const string query = "INSERT INTO `wp_player_gloves` (`steamid`, `weapon_defindex`, `weapon_team`) VALUES(@steamid, @weapon_defindex, @team) ON DUPLICATE KEY UPDATE `weapon_defindex` = @weapon_defindex, `weapon_team` = @team";
+				await connection.ExecuteAsync(query, new { steamid = player.SteamId, weapon_defindex = defindex, team });
+
 			}
 			catch (Exception e)
 			{
@@ -225,7 +247,7 @@ namespace WeaponPaints
 			}
 		}
 
-		internal async Task SyncWeaponPaintsToDatabase(PlayerInfo player)
+		internal async Task SyncWeaponPaintsToDatabase(PlayerInfo player, int team)
 		{
 			if (string.IsNullOrEmpty(player.SteamId) || !WeaponPaints.gPlayerWeaponsInfo.TryGetValue(player.Slot, out var weaponsInfo))
 				return;
@@ -240,23 +262,23 @@ namespace WeaponPaints
 					var wear = weaponInfo.Wear;
 					var seed = weaponInfo.Seed;
 
-					const string queryCheckExistence = "SELECT COUNT(*) FROM `wp_player_skins` WHERE `steamid` = @steamid AND `weapon_defindex` = @weaponDefIndex";
+					const string queryCheckExistence = "SELECT COUNT(*) FROM `wp_player_skins` WHERE `steamid` = @steamid AND `weapon_defindex` = @weaponDefIndex AND `weapon_team` = @team";
 
-					var existingRecordCount = await connection.ExecuteScalarAsync<int>(queryCheckExistence, new { steamid = player.SteamId, weaponDefIndex = weaponDefIndex });
+					var existingRecordCount = await connection.ExecuteScalarAsync<int>(queryCheckExistence, new { steamid = player.SteamId, weaponDefIndex = weaponDefIndex, team = team});
 
 					string query;
 					object parameters;
 
 					if (existingRecordCount > 0)
 					{
-						query = "UPDATE `wp_player_skins` SET `weapon_paint_id` = @paintId, `weapon_wear` = @wear, `weapon_seed` = @seed WHERE `steamid` = @steamid AND `weapon_defindex` = @weaponDefIndex";
-						parameters = new { steamid = player.SteamId, weaponDefIndex = weaponDefIndex, paintId, wear, seed };
+						query = "UPDATE `wp_player_skins` SET `weapon_paint_id` = @paintId, `weapon_wear` = @wear, `weapon_seed` = @seed WHERE `steamid` = @steamid AND `weapon_defindex` = @weaponDefIndex AND `weaponteam` = @team";
+						parameters = new { steamid = player.SteamId, weaponDefIndex = weaponDefIndex, paintId, wear, seed, team};
 					}
 					else
 					{
-						query = "INSERT INTO `wp_player_skins` (`steamid`, `weapon_defindex`, `weapon_paint_id`, `weapon_wear`, `weapon_seed`) " +
-								"VALUES (@steamid, @weaponDefIndex, @paintId, @wear, @seed)";
-						parameters = new { steamid = player.SteamId, weaponDefIndex = weaponDefIndex, paintId, wear, seed };
+					query = "INSERT INTO `wp_player_skins` (`steamid`, `weapon_defindex`, `weapon_paint_id`, `weapon_wear`, `weapon_seed`, `weapon_team`) " +
+							"VALUES (@steamid, @weaponDefIndex, @paintId, @wear, @seed, @team)";
+					parameters = new { steamid = player.SteamId, weaponDefIndex = weaponDefIndex, paintId, wear, seed, team};
 					}
 
 					await connection.ExecuteAsync(query, parameters);

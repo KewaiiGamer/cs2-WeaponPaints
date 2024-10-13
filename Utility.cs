@@ -30,6 +30,7 @@ namespace WeaponPaints
 						                        `steamid` varchar(18) NOT NULL,
 						                        `weapon_defindex` int(6) NOT NULL,
 						                        `weapon_paint_id` int(6) NOT NULL,
+												`weapon_team` int(2) NOT NULL,
 						                        `weapon_wear` float NOT NULL DEFAULT 0.000001,
 						                        `weapon_seed` int(16) NOT NULL DEFAULT 0
 						                    ) ENGINE=InnoDB
@@ -37,12 +38,14 @@ namespace WeaponPaints
 						@"CREATE TABLE IF NOT EXISTS `wp_player_knife` (
                         `steamid` varchar(18) NOT NULL,
                         `knife` varchar(64) NOT NULL,
+						`team` int(2) NOT NULL,
                         UNIQUE (`steamid`)
                     ) ENGINE = InnoDB",
 						"""
 						CREATE TABLE IF NOT EXISTS `wp_player_gloves` (
 											 `steamid` varchar(18) NOT NULL,
 											 `weapon_defindex` int(11) NOT NULL,
+											 `weapon_team` int(2) NOT NULL,
 						                      UNIQUE (`steamid`)
 											) ENGINE=InnoDB
 						""",
@@ -58,6 +61,7 @@ namespace WeaponPaints
 						CREATE TABLE IF NOT EXISTS `wp_player_music` (
 											 `steamid` varchar(64) NOT NULL,
 											 `music_id` int(11) NOT NULL,
+											 `weapon_team` int(2) NOT NULL,
 											 UNIQUE (`steamid`)
 											) ENGINE=InnoDB
 						""",

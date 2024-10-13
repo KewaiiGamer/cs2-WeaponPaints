@@ -116,6 +116,13 @@ namespace WeaponPaints
 			}
 		}
 
+
+		public float ViewAsFloat(uint value)
+        {
+        	byte[] bytes = BitConverter.GetBytes(value);
+			return BitConverter.ToSingle(bytes, 0);
+        }
+
 		private void SetupKnifeMenu()
 		{
 			if (!Config.Additional.KnifeEnabled || !g_bCommandsAllowed) return;
@@ -152,13 +159,13 @@ namespace WeaponPaints
 					IpAddress = player.IpAddress?.Split(":")[0]
 				};
 
-				g_playersKnife[player.Slot] = knifeKey;
+				g_playersKnife[player.Slot][0] = (string)knifeKey;
 
 				if (g_bCommandsAllowed && (LifeState_t)player.LifeState == LifeState_t.LIFE_ALIVE)
 					RefreshWeapons(player);
 
 				if (weaponSync != null)
-					_ = Task.Run(async () => await weaponSync.SyncKnifeToDatabase(playerInfo, knifeKey));
+					_ = Task.Run(async () => await weaponSync.SyncKnifeToDatabase(playerInfo, knifeKey, 0));
 			};
 			foreach (var knifePair in knivesOnly)
 			{
@@ -267,7 +274,7 @@ namespace WeaponPaints
 
 						try
 						{
-							_ = Task.Run(async () => await weaponSync.SyncWeaponPaintsToDatabase(playerInfo));
+							_ = Task.Run(async () => await weaponSync.SyncWeaponPaintsToDatabase(playerInfo, 0));
 						}
 						catch (Exception ex)
 						{
@@ -360,7 +367,7 @@ namespace WeaponPaints
 
 				if (paint != 0)
 				{
-					g_playersGlove[player.Slot] = (ushort)weaponDefindex;
+					g_playersGlove[player.Slot] = new(0, (ushort)weaponDefindex);
 
 					if (!gPlayerWeaponsInfo[player.Slot].ContainsKey(weaponDefindex))
 					{
@@ -385,7 +392,7 @@ namespace WeaponPaints
 				
 				_ = Task.Run(async () =>
 				{
-					await weaponSync.SyncGloveToDatabase(playerInfo, weaponDefindex);
+					await weaponSync.SyncGloveToDatabase(playerInfo, weaponDefindex, 0);
 
 					if (!gPlayerWeaponsInfo[playerInfo.Slot].TryGetValue(weaponDefindex, out var value))
 					{
@@ -397,7 +404,7 @@ namespace WeaponPaints
 					value.Wear = 0.00f;
 					value.Seed = 0;
 
-					await weaponSync.SyncWeaponPaintsToDatabase(playerInfo);
+					await weaponSync.SyncWeaponPaintsToDatabase(playerInfo, 0);
 				});
 				
 				AddTimer(0.1f, () => GivePlayerGloves(player));
@@ -581,11 +588,11 @@ namespace WeaponPaints
 
 					if (paint != 0)
 					{
-						g_playersMusic[player.Slot] = (ushort)paint;
+						g_playersMusic[player.Slot] = new(0, (ushort)paint);
 					}
 					else
 					{
-						g_playersMusic[player.Slot] = 0;
+						g_playersMusic[player.Slot] = new(0, 0);
 					}
 
 					if (!string.IsNullOrEmpty(Localizer["wp_music_menu_select"]))
@@ -615,7 +622,7 @@ namespace WeaponPaints
 						IpAddress = player.IpAddress?.Split(":")[0]
 					};
 
-					g_playersMusic[player.Slot] = 0;
+					g_playersMusic[player.Slot] = new(0, 0);
 
 					if (!string.IsNullOrEmpty(Localizer["wp_music_menu_select"]))
 					{
